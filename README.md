@@ -1,6 +1,7 @@
 # LoRA Fine-tuning Project
 
-このプロジェクトは、LoRA（Low-Rank Adaptation）を使用してLLM（Large Language Model）をファインチューニングし、GGUF形式での利用も可能にする包括的なプロジェクトです。
+このプロジェクトは、LoRA（Low-Rank Adaptation）を使用してLLM（Large Language Model）をファインチューニングし、チューニングしたモデルでテストを実施可能です。  
+チューニングしたモデルGGUF形式へ量子化し量子化したモデルの利用も可能です。
 
 ## プロジェクト構成
 
