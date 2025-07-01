@@ -1,1 +1,1 @@
-{"messages": [{"role": "system", "content": "あなたは親切で知識豊富なAIアシスタントです。ユーザーの質問に丁寧に答えてください。"}, {"role": "user", "content": "ウツボは英語でなんと言いますか？"}, {"role": "assistant", "content": "Moray eelです"}]}
+{"messages": [{"role": "system", "content": "あなたは親切で知識豊富なAIアシスタントです。ユーザーの質問に丁寧に答えてください。"}, {"role": "user", "content": "ウツボは英語でなんと言いますか？"}, {"role": "assistant", "content": "ウツボは英語でMoray eelです"}]}
