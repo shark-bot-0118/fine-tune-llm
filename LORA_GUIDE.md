@@ -9,8 +9,10 @@
 3. [LoRAパラメータ詳細](#loraパラメータ詳細)
 4. [パラメータ設定ガイド](#パラメータ設定ガイド)
 5. [Adapterの仕組み](#adapterの仕組み)
-6. [実践的な設定例](#実践的な設定例)
-7. [トラブルシューティング](#トラブルシューティング)
+6. [マージ処理の詳細](#マージ処理の詳細)
+7. [GGUF変換プロセス](#gguf変換プロセス)
+8. [実践的な設定例](#実践的な設定例)
+9. [トラブルシューティング](#トラブルシューティング)
 
 ## LoRAとは
 
@@ -69,6 +71,8 @@ LoRA:
 
 ### Transformerモデルでの適用
 
+#### LoRAの実装詳細
+
 ```python
 # Attention層への適用例
 class LoRALinear:
@@ -78,10 +82,137 @@ class LoRALinear:
         self.lora_B = nn.Linear(r, out_features, bias=False)
         self.scaling = alpha / r
         
+        # 重み初期化
+        nn.init.kaiming_uniform_(self.lora_A.weight, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B.weight)  # Bは0で初期化
+        
     def forward(self, x):
         original_output = self.original(x)
         lora_output = self.lora_B(self.lora_A(x)) * self.scaling
         return original_output + lora_output
+```
+
+#### LoRA適用の処理フロー
+
+```python
+# train_lora.pyでの処理フロー
+
+def apply_lora_to_model(model, lora_config):
+    # 1. ターゲットモジュールの特定
+    target_modules = ["q_proj", "v_proj", "k_proj", "o_proj"]
+    
+    # 2. 各層にLoRAを適用
+    for name, module in model.named_modules():
+        if any(target in name for target in target_modules):
+            # 元の重みを凍結
+            for param in module.parameters():
+                param.requires_grad = False
+            
+            # LoRA層を追加
+            lora_layer = LoRALinear(module, r=16, alpha=32)
+            setattr(model, name, lora_layer)
+    
+    # 3. 訓練可能パラメータの確認
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
+    print(f"Total: {total_params}, Trainable: {trainable_params}")
+    print(f"Trainable ratio: {100 * trainable_params / total_params:.2f}%")
+```
+
+#### Attention機構でのLoRA
+
+```python
+# Multi-Head Attentionでの具体例
+class MultiHeadAttentionWithLoRA:
+    def __init__(self, d_model=1152, n_heads=4, r=16, alpha=32):
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.head_dim = d_model // n_heads
+        
+        # 元のProjection層（凍結）
+        self.q_proj = nn.Linear(d_model, d_model, bias=False)
+        self.k_proj = nn.Linear(d_model, d_model, bias=False)
+        self.v_proj = nn.Linear(d_model, d_model, bias=False)
+        self.o_proj = nn.Linear(d_model, d_model, bias=False)
+        
+        # LoRA層
+        self.q_lora = LoRALinear(self.q_proj, r, alpha)
+        self.k_lora = LoRALinear(self.k_proj, r, alpha)
+        self.v_lora = LoRALinear(self.v_proj, r, alpha)
+        self.o_lora = LoRALinear(self.o_proj, r, alpha)
+    
+    def forward(self, x):
+        batch_size, seq_len, d_model = x.shape
+        
+        # LoRA適用済みのProjection
+        Q = self.q_lora(x)  # 元の重み + LoRA調整
+        K = self.k_lora(x)
+        V = self.v_lora(x)
+        
+        # Multi-Head Attention計算
+        Q = Q.view(batch_size, seq_len, self.n_heads, self.head_dim).transpose(1, 2)
+        K = K.view(batch_size, seq_len, self.n_heads, self.head_dim).transpose(1, 2)
+        V = V.view(batch_size, seq_len, self.n_heads, self.head_dim).transpose(1, 2)
+        
+        attention_output = self.compute_attention(Q, K, V)
+        output = self.o_lora(attention_output)
+        
+        return output
+```
+
+#### LoRA訓練の詳細過程
+
+```python
+# 訓練ループでの処理
+def train_lora_step(model, batch, optimizer):
+    # 1. Forward pass
+    input_ids = batch['input_ids']
+    labels = batch['labels']
+    
+    # 元のモデル出力（勾配なし）
+    with torch.no_grad():
+        base_logits = original_model(input_ids).logits
+    
+    # LoRA適用モデルの出力
+    lora_logits = model(input_ids).logits
+    
+    # 2. Loss計算
+    loss = F.cross_entropy(lora_logits.view(-1, vocab_size), labels.view(-1))
+    
+    # 3. Backward pass（LoRAパラメータのみ）
+    loss.backward()
+    
+    # 4. 勾配確認
+    for name, param in model.named_parameters():
+        if param.requires_grad and param.grad is not None:
+            print(f"LoRA gradient: {name}, norm: {param.grad.norm()}")
+    
+    # 5. パラメータ更新
+    optimizer.step()
+    optimizer.zero_grad()
+    
+    return loss.item()
+```
+
+#### メモリ効率の実現
+
+```python
+# メモリ使用量の比較
+def memory_comparison():
+    """
+    従来のファインチューニング:
+    - 全パラメータの勾配: 1.3B × 4 bytes = 5.2GB
+    - オプティマイザ状態: 1.3B × 8 bytes = 10.4GB
+    - 合計: ~15.6GB
+    
+    LoRA (r=16):
+    - LoRAパラメータ: ~73M parameters
+    - 勾配: 73M × 4 bytes = 292MB
+    - オプティマイザ状態: 73M × 8 bytes = 584MB
+    - 合計: ~876MB (約94%削減)
+    """
+    pass
 ```
 
 ## LoRAパラメータ詳細
@@ -384,6 +515,245 @@ model.load_adapter("path/to/code_adapter", adapter_name="code")
 model.set_adapter("chat")    # チャット用
 model.set_adapter("code")    # コード生成用
 ```
+
+## マージ処理の詳細
+
+### マージとは何か
+
+**マージ処理**は、LoRAアダプターの重みをベースモデルの重みに統合する処理です。これにより、単一のモデルファイルとして扱えるようになります。
+
+### マージの数学的仕組み
+
+```python
+# マージ前の状態
+W_base = 元のモデルの重み行列
+A, B = LoRAアダプターの重み行列
+alpha, r = LoRAパラメータ
+
+# マージ処理
+W_merged = W_base + (alpha / r) × A × B
+
+# マージ後
+# - 単一の重み行列として統合
+# - LoRAアダプターファイルは不要になる
+# - 推論時の計算が高速化
+```
+
+### マージのメリット・デメリット
+
+#### ✅ メリット
+1. **推論高速化**:
+   - LoRA計算のオーバーヘッドがなくなる
+   - 単一の行列乗算で済む
+
+2. **ファイル管理の簡素化**:
+   - ベースモデル + アダプター → 単一モデル
+   - デプロイが簡単
+
+3. **GGUF変換の前提**:
+   - llama.cppは分離されたLoRAアダプターを直接サポートしない
+   - 統合されたモデルが必要
+
+#### ❌ デメリット
+1. **柔軟性の喪失**:
+   - 複数アダプターの切り替えができない
+   - タスク固有の最適化が困難
+
+2. **ストレージ使用量**:
+   - ベースモデルサイズ分のディスク容量が必要
+   - アダプター（数MB〜数百MB）→ 統合モデル（数GB）
+
+### マージ処理の実装詳細
+
+```python
+# merge_lora_adapter.pyでの処理フロー
+
+def merge_process():
+    # 1. ベースモデル読み込み
+    base_model = AutoModelForCausalLM.from_pretrained("google/gemma-3-1b-it")
+    
+    # 2. LoRAアダプター適用
+    model = PeftModel.from_pretrained(base_model, "path/to/lora_adapter")
+    
+    # 3. マージ実行
+    merged_model = model.merge_and_unload()
+    # 内部処理:
+    # for name, module in model.named_modules():
+    #     if hasattr(module, 'merge'):
+    #         module.merge()  # W = W + alpha/r * A * B
+    
+    # 4. 統合モデル保存
+    merged_model.save_pretrained("output/merged_model")
+```
+
+### マージ時の注意点
+
+1. **メモリ使用量**:
+   ```python
+   # マージ中は一時的にメモリ使用量が増加
+   # ベースモデル + LoRAアダプター + マージ後モデル
+   # 合計: 通常の2-3倍のメモリが必要
+   ```
+
+2. **精度の確認**:
+   ```python
+   # マージ前後での出力比較
+   original_output = model.generate(input_ids)
+   merged_output = merged_model.generate(input_ids)
+   # 結果は理論上同一になるはず
+   ```
+
+## GGUF変換プロセス
+
+### GGUF変換の必要性
+
+**GGUF (GPT-Generated Unified Format)** は、llama.cppで使用される高効率なモデル形式です。
+
+#### なぜGGUF変換が必要か
+
+1. **推論速度の向上**:
+   - CPU最適化: SIMD命令セットの活用
+   - メモリアクセス最適化: 連続的なメモリレイアウト
+   - 量子化サポート: INT4, INT8での高速計算
+
+2. **メモリ効率**:
+   ```
+   HuggingFace形式 (PyTorch):
+   - Gemma 3-1B: ~2.6GB (float16)
+   - メモリ使用量: ~4-6GB (推論時)
+   
+   GGUF形式 (量子化):
+   - Gemma 3-1B Q4_K_M: ~800MB
+   - メモリ使用量: ~1-2GB (推論時)
+   ```
+
+3. **プラットフォーム対応**:
+   - CPU専用環境での実行
+   - GPU不要での高速推論
+   - エッジデバイス対応
+
+### マージが変換前に必要な理由
+
+#### 技術的制約
+
+```
+llama.cpp の制約:
+1. 統合されたモデル重みを期待
+2. 動的なLoRA計算をサポートしない
+3. 単一のGGUFファイルにすべての重みを格納
+```
+
+#### 処理フローの比較
+
+**❌ 不可能なフロー**:
+```
+ベースモデル(HF) + LoRAアダプター → GGUF変換
+                                    ↑
+                              llama.cppが理解できない
+```
+
+**✅ 正しいフロー**:
+```
+ベースモデル(HF) + LoRAアダプター → マージ → 統合モデル(HF) → GGUF変換
+```
+
+### GGUF変換の処理詳細
+
+#### 1. tokenizer.model自動生成
+
+```python
+# convert_to_gguf.pyでの処理
+def ensure_tokenizer_model(model_path):
+    tokenizer_model_path = Path(model_path) / "tokenizer.model"
+    
+    if not tokenizer_model_path.exists():
+        # HuggingFaceキャッシュから取得
+        original_model = cached_file(base_model_name, "tokenizer.model")
+        shutil.copy2(original_model, tokenizer_model_path)
+```
+
+**必要性**:
+- llama.cppはSentencePieceトークナイザーを期待
+- HuggingFace形式のみでは不十分
+- tokenizer.modelファイルが必須
+
+#### 2. llama.cpp変換スクリプト実行
+
+```bash
+# 実際の変換コマンド
+python llama.cpp/convert_hf_to_gguf.py \
+  /path/to/merged_model \
+  --outfile /path/to/output.gguf \
+  --outtype f16
+```
+
+**内部処理**:
+1. モデルアーキテクチャの検出
+2. 重み行列の抽出とフォーマット変換
+3. メタデータの埋め込み
+4. GGUFファイル形式での出力
+
+#### 3. 量子化（オプション）
+
+```bash
+# 変換後の量子化
+llama.cpp/build/bin/llama-quantize \
+  model.gguf \
+  model_q4.gguf \
+  Q4_K_M
+```
+
+**量子化方式**:
+```python
+量子化オプション:
+- Q4_K_M: 4bit、高品質（推奨）
+- Q5_K_M: 5bit、最高品質
+- Q8_0: 8bit、精度重視
+- Q2_K: 2bit、最小サイズ
+```
+
+### 変換プロセス全体の流れ
+
+```mermaid
+graph TD
+    A[LoRA訓練完了] --> B[merge_lora_adapter.py]
+    B --> C[統合モデル生成]
+    C --> D[tokenizer.model確認]
+    D --> E[convert_to_gguf.py]
+    E --> F[llama.cpp変換]
+    F --> G[GGUF形式出力]
+    G --> H[量子化（オプション）]
+    H --> I[最終GGUFモデル]
+```
+
+### 変換時の注意点
+
+1. **ディスク容量**:
+   ```
+   必要容量の目安:
+   - 元モデル: 2.6GB
+   - 統合モデル: 2.6GB
+   - GGUF形式: 2.6GB (f16) or 800MB (Q4_K_M)
+   - 一時的に最大8GB程度必要
+   ```
+
+2. **変換時間**:
+   ```
+   Gemma 3-1Bの場合:
+   - マージ: 1-2分
+   - GGUF変換: 2-5分
+   - 量子化: 1-3分
+   ```
+
+3. **精度検証**:
+   ```python
+   # 変換前後での出力比較
+   hf_output = merged_model.generate(test_input)
+   gguf_output = llama_cli_generate(test_input)
+   
+   # 若干の数値誤差は正常
+   # 大幅な出力変化は問題
+   ```
 
 ## 実践的な設定例
 
