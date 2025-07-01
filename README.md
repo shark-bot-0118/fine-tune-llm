@@ -8,7 +8,8 @@
 
 ## 制約と注意事項
 
-- [Development Note](DEVELOPMENT_NOTE.md) - 開発時の知見・制約・トラブルシューティング
+- [Development Note](DEVELOPMENT_NOTE.md) - 開発時の知見・制約などを記載
+    ※はじめにこちらに目を通しておくことをお勧めします
 
 ## プロジェクト構成
 
