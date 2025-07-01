@@ -6,6 +6,9 @@
 
 - [LoRA Guide](LORA_GUIDE.md) - 詳細なLoRAガイド
 
+## 制約と注意事項
+
+- [Development Note](DEVELOPMENT_NOTE.md) - 開発時の知見・制約・トラブルシューティング
 
 ## プロジェクト構成
 
@@ -27,7 +30,6 @@ fine_tune_llm/
 │   ├── chat_with_lora.py    # チャットインターフェース
 │   ├── merge_lora_adapter.py # アダプターマージ
 │   ├── convert_to_gguf.py   # GGUF変換
-│   ├── run_gguf_model.py    # GGUF実行
 │   └── run_llm.py           # ベースモデル実行
 ├── llama.cpp/               # GGUF変換・実行ツール
 ├── requirements.txt         # Python依存関係
