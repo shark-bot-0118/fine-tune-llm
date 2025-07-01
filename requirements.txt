@@ -1,44 +1,67 @@
-# Core ML/AI Libraries
-torch>=2.0.0
-transformers>=4.36.0
-datasets>=2.14.0
-peft>=0.7.0
+# LLM Fine-tuning Project Dependencies
+# Updated for optimal compatibility and security
 
-# HuggingFace Hub
-huggingface_hub>=0.19.0
+# Core ML/AI Libraries (Latest stable versions)
+torch>=2.1.0,<2.5.0  # PyTorch with CUDA/MPS support
+transformers>=4.46.0,<5.0.0  # HuggingFace transformers with Gemma 3 support
+datasets>=2.19.0,<3.0.0  # HuggingFace datasets for data handling
+peft>=0.13.0,<1.0.0  # Parameter Efficient Fine-tuning (LoRA support)
+
+# HuggingFace Ecosystem
+huggingface_hub>=0.25.0,<1.0.0  # Model and dataset hub integration
+tokenizers>=0.20.0,<1.0.0  # Fast tokenization
 
 # Environment and Configuration
-python-dotenv>=1.0.0
+python-dotenv>=1.0.0,<2.0.0  # Environment variable management
 
-# Accelerated Training (optional but recommended)
-accelerate>=0.25.0
+# Accelerated Training and Optimization
+accelerate>=0.34.0,<2.0.0  # Distributed training and mixed precision (compatible with transformers)
+bitsandbytes>=0.42.0,<1.0.0  # Quantization and memory optimization
 
-# For Apple Silicon GPU support (MPS)
-# torch with MPS support is included in torch>=2.0.0
+# Data Processing and Scientific Computing
+numpy>=1.24.0,<2.0.0  # Numerical computing
+pandas>=2.2.0,<3.0.0  # Data manipulation and analysis
 
-# For CUDA support (if using NVIDIA GPUs)
-# torch with CUDA support should be installed separately if needed
-# Example: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Monitoring and Logging (Optional but recommended)
+wandb>=0.17.0,<1.0.0  # Experiment tracking
+tensorboard>=2.16.0,<3.0.0  # TensorBoard logging
+tqdm>=4.66.0,<5.0.0  # Progress bars
 
-# Development and Data Processing
-numpy>=1.24.0
-pandas>=2.0.0
+# Development and Analysis Tools (Optional)
+jupyter>=1.0.0,<2.0.0  # Jupyter notebook support
+ipywidgets>=8.1.0,<9.0.0  # Interactive widgets for notebooks
+matplotlib>=3.8.0,<4.0.0  # Plotting and visualization
+seaborn>=0.13.0,<1.0.0  # Statistical data visualization
 
-# Optional: For advanced tokenization and text processing
-tokenizers>=0.15.0
+# Security and File Handling
+safetensors>=0.4.0,<1.0.0  # Safe tensor serialization
+requests>=2.31.0,<3.0.0  # HTTP requests with security patches
 
-# Optional: For model quantization and optimization
-bitsandbytes>=0.41.0
+# System and Performance Monitoring
+psutil>=5.9.0,<6.0.0  # System and process utilities
+GPUtil>=1.4.0,<2.0.0  # GPU monitoring (if available)
 
-# Optional: For monitoring and logging
-wandb>=0.16.0
-tensorboard>=2.15.0
+# Additional utilities for fine-tuning workflows
+scipy>=1.12.0,<2.0.0  # Scientific computing
+scikit-learn>=1.4.0,<2.0.0  # Machine learning utilities
 
-# Optional: For Jupyter notebook support
-jupyter>=1.0.0
-ipywidgets>=8.0.0
+# Development Dependencies (Optional)
+# Uncomment if needed for development
+# black>=24.0.0  # Code formatting
+# isort>=5.13.0  # Import sorting
+# flake8>=7.0.0  # Linting
 
-# System requirements
-# Python >= 3.8
-# For Apple Silicon: macOS >= 12.0 for MPS support
-# For CUDA: CUDA >= 11.8 (for PyTorch 2.0+)
+# Hardware-specific notes:
+# For Apple Silicon (M1/M2/M3): All packages include MPS support
+# For NVIDIA GPUs: Ensure CUDA toolkit compatibility
+# For CPU-only: All packages work without additional setup
+
+# Installation notes:
+# 1. For NVIDIA GPUs with CUDA, install PyTorch with CUDA support:
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# 2. For ROCm (AMD GPUs), use ROCm-specific PyTorch builds
+# 3. For optimal performance, consider installing from conda-forge for some packages
+
+# Minimum Python version: 3.9+
+# Recommended Python version: 3.10 or 3.11
+# Apple Silicon users: macOS 12.0+ recommended for full MPS support
