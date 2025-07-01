@@ -62,7 +62,7 @@ fine_tune_llm/
 
 ### 1. リポジトリをクローン
 ```bash
-git clone <repository-url>
+git clone https://github.com/shark-bot-0118/fine-tune-llm.git
 cd fine_tune_llm
 ```
 
