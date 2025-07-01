@@ -1,7 +1,23 @@
-# Minimal requirements for basic functionality
-torch>=2.0.0
-transformers>=4.36.0
-datasets>=2.14.0
-peft>=0.7.0
-huggingface_hub>=0.19.0
-python-dotenv>=1.0.0
+# Minimal requirements for LLM fine-tuning (Essential packages only)
+# Updated for compatibility and security
+
+# Core ML/AI Libraries - Essential only
+torch>=2.1.0,<2.5.0  # PyTorch with CUDA/MPS support
+transformers>=4.46.0,<5.0.0  # HuggingFace transformers with Gemma 3 support
+datasets>=2.19.0,<3.0.0  # HuggingFace datasets
+peft>=0.13.0,<1.0.0  # LoRA and other parameter-efficient fine-tuning
+
+# HuggingFace Integration
+huggingface_hub>=0.25.0,<1.0.0  # Model and dataset hub access
+
+# Configuration Management
+python-dotenv>=1.0.0,<2.0.0  # Environment variables
+
+# Essential utilities
+tqdm>=4.66.0,<5.0.0  # Progress bars for training
+numpy>=1.24.0,<2.0.0  # Numerical computing (required by most ML libraries)
+
+# Minimum Python version: 3.9+
+# For GPU support, install PyTorch with appropriate backend:
+# CUDA: pip install torch --index-url https://download.pytorch.org/whl/cu121
+# ROCm: pip install torch --index-url https://download.pytorch.org/whl/rocm5.6
