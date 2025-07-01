@@ -152,7 +152,83 @@ pip install -r requirements-minimal.txt
 pip install -r requirements.txt
 ```
 
-### 3. llama.cppのセットアップ（GGUF変換・実行用）
+### 3. Hugging Faceモデルの準備
+
+#### Hugging Faceとは
+[Hugging Face](https://huggingface.co/)は、機械学習モデルとデータセットの共有プラットフォームです。数万の事前訓練済みモデルが公開されており、研究・商用利用が可能です。
+
+**主な特徴**:
+- 🤗 **豊富なモデル**: GPT、BERT、LLaMA、Gemmaなど最新モデル
+- 🔄 **簡単ダウンロード**: コマンド一行でモデル取得
+- 📄 **詳細な文書**: モデルカード、使用方法、ライセンス情報
+- 🔐 **アクセス制御**: 一部モデルはアカウント認証が必要
+
+#### モデルのインストール方法
+
+**自動ダウンロード（推奨）**:
+```bash
+# スクリプト実行時に自動ダウンロード
+python scripts/train_lora.py --model google/gemma-3-1b-it
+# 初回実行時にHugging Face Hubから自動的にモデルがダウンロードされます
+```
+
+**手動事前ダウンロード**:
+```bash
+# Hugging Face CLIを使用
+pip install huggingface_hub
+huggingface-cli download google/gemma-3-1b-it
+
+# Pythonスクリプトで事前ダウンロード
+python -c "
+from transformers import AutoModel, AutoTokenizer
+model = AutoModel.from_pretrained('google/gemma-3-1b-it')
+tokenizer = AutoTokenizer.from_pretrained('google/gemma-3-1b-it')
+print('Model downloaded successfully!')
+"
+```
+
+#### アクセス制限付きモデルの取得
+
+一部のモデル（Meta LLaMA、Google Gemmaなど）は利用申請が必要です：
+
+1. **Hugging Faceアカウント作成**: https://huggingface.co/join
+2. **モデルページで利用申請**: 該当モデルページで"Request access"
+3. **トークンの取得**: https://huggingface.co/settings/tokens
+4. **認証の設定**:
+
+```bash
+# 方法1: huggingface-cliでログイン
+huggingface-cli login
+
+# 方法2: 環境変数で設定
+export HUGGINGFACE_HUB_TOKEN="your_token_here"
+
+# 方法3: .env ファイルに記載
+echo "HUGGINGFACE_HUB_TOKEN=your_token_here" >> .env
+```
+
+#### 推奨モデル
+
+| モデル名 | サイズ | 特徴 | アクセス |
+|---------|-------|------|---------|
+| `google/gemma-3-1b-it` | 1.3B | 軽量、日本語対応 | 申請必要 |
+| `google/gemma-3-4b-it` | 4B | 高性能、マルチモーダル対応 | 申請必要 |
+| `deepseek-ai/DeepSeek-R1-0528-Qwen3-8B` | 8B | 推論特化、SOTA性能 | 自由 |
+| `Qwen/Qwen3-4B` | 4B | 最新版、119言語対応 | 自由 |
+
+#### ダウンロード場所
+
+ダウンロードされたモデルは以下に保存されます：
+```bash
+# デフォルトキャッシュ場所
+~/.cache/huggingface/hub/  # Linux/macOS
+C:\Users\{username}\.cache\huggingface\hub\  # Windows
+
+# カスタムキャッシュディレクトリ
+export HF_HOME="/path/to/custom/cache"
+```
+
+### 4. llama.cppのセットアップ（GGUF変換・実行用）
 
 llama.cppは高速なGGUF推論のために必要です：
 
@@ -391,4 +467,6 @@ MIT License
 - [PEFT Documentation](https://huggingface.co/docs/peft)
 - [llama.cpp](https://github.com/ggerganov/llama.cpp)
 - [GGUF Format](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md)
-- [Gemma 3 Model](https://huggingface.co/google/gemma-3-1b-it)
+- [Gemma 3 Model](https://huggingface.co/google/gemma-3-4b-it)
+- [DeepSeek R1 Model](https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B)
+- [Qwen3 Model Collection](https://huggingface.co/collections/Qwen/qwen3-67dd247413f0e2e4f653967f)
