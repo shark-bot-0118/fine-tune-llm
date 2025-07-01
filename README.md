@@ -1,7 +1,8 @@
 # LoRA Fine-tuning Project
 
 このプロジェクトは、LoRA（Low-Rank Adaptation）を使用してLLM（Large Language Model）をファインチューニングし、チューニングしたモデルでテストを実施可能です。  
-チューニングしたモデルGGUF形式へ量子化し量子化したモデルの利用も可能です。
+llama.ccpを利用してトレーニングしたモデルをGGUF形式へ量子化するプロンプトも提供しています。
+量子化したモデルを実行する場合はllma cliを利用してください。
 
 ## プロジェクト構成
 
