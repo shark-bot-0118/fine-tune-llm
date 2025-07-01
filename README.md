@@ -14,7 +14,7 @@
 ## プロジェクト構成
 
 ```
-fine_tune_llm/
+fine-tune-llm/
 ├── data/                     # 訓練データ
 │   └── fine_tune_data.jsonl
 ├── models/                   # 訓練済みモデル
@@ -63,7 +63,7 @@ fine_tune_llm/
 ### 1. リポジトリをクローン
 ```bash
 git clone https://github.com/shark-bot-0118/fine-tune-llm.git
-cd fine_tune_llm
+cd fine-tune-llm
 ```
 
 ### 2. Python依存関係をインストール
