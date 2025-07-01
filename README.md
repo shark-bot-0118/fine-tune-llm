@@ -2,7 +2,7 @@
 
 このプロジェクトは、LoRA（Low-Rank Adaptation）を使用してLLM（Large Language Model）をファインチューニングし、GGUF形式での高速推論も可能にする包括的なプロジェクトです。
 
-## LoRAガイド
+## 事前知識 -LoRAとは-
 
 - [LoRA Guide](LORA_GUIDE.md) - 詳細なLoRAガイド
 
