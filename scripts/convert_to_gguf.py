@@ -33,6 +33,73 @@ def check_dependencies():
         print("Please install: pip install torch transformers")
         sys.exit(1)
 
+def ensure_tokenizer_model(model_path):
+    """tokenizer.modelファイルが存在することを確認し、なければ取得を試行"""
+    tokenizer_model_path = Path(model_path) / "tokenizer.model"
+    
+    if tokenizer_model_path.exists():
+        print(f"tokenizer.model found at: {tokenizer_model_path}")
+        return True
+    
+    print(f"tokenizer.model not found at: {tokenizer_model_path}")
+    print("Attempting to obtain tokenizer.model...")
+    
+    # HuggingFaceモデルの場合、元のモデルから取得を試行
+    try:
+        from transformers.utils import cached_file
+        from transformers import AutoTokenizer
+        
+        # モデルがローカルパスかHuggingFace Hub IDかを判定
+        if Path(model_path).is_dir():
+            # ローカルディレクトリ内のconfig.jsonから元のモデル名を取得
+            config_path = Path(model_path) / "config.json"
+            if config_path.exists():
+                import json
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                # _name_or_pathから元のモデル名を取得
+                original_model = config.get('_name_or_path', model_path)
+            else:
+                original_model = model_path
+        else:
+            original_model = model_path
+        
+        # 元のモデルからtokenizer.modelを取得
+        print(f"Trying to get tokenizer.model from: {original_model}")
+        original_tokenizer_model = cached_file(original_model, "tokenizer.model")
+        
+        if original_tokenizer_model and Path(original_tokenizer_model).exists():
+            import shutil
+            shutil.copy2(original_tokenizer_model, tokenizer_model_path)
+            print(f"Successfully copied tokenizer.model to: {tokenizer_model_path}")
+            return True
+        else:
+            print("tokenizer.model not available from original model")
+            
+    except Exception as e:
+        print(f"Error obtaining tokenizer.model: {e}")
+    
+    # 最後の手段として、transformersのTokenizerから生成を試行
+    try:
+        print("Attempting to generate tokenizer.model using transformers...")
+        from transformers import AutoTokenizer
+        
+        tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        if hasattr(tokenizer, 'save_vocabulary'):
+            vocab_files = tokenizer.save_vocabulary(str(Path(model_path)))
+            print(f"Generated vocabulary files: {vocab_files}")
+            
+            # tokenizer.modelが生成されたか確認
+            if tokenizer_model_path.exists():
+                print(f"Successfully generated tokenizer.model")
+                return True
+        
+    except Exception as e:
+        print(f"Error generating tokenizer.model: {e}")
+    
+    print("Warning: Could not obtain tokenizer.model. Conversion may fail.")
+    return False
+
 def convert_hf_model(model_path, output_dir, dtype="f16"):
     """HuggingFaceモデルをGGUFに変換"""
     llama_cpp_path = get_llama_cpp_path()
@@ -40,6 +107,10 @@ def convert_hf_model(model_path, output_dir, dtype="f16"):
     
     if not convert_script.exists():
         raise FileNotFoundError(f"Conversion script not found: {convert_script}")
+    
+    # tokenizer.modelの存在を確認・取得
+    print("Checking for tokenizer.model file...")
+    ensure_tokenizer_model(model_path)
     
     # 出力ディレクトリを作成
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -49,7 +120,7 @@ def convert_hf_model(model_path, output_dir, dtype="f16"):
         sys.executable,
         str(convert_script),
         str(model_path),
-        "--outdir", str(output_dir),
+        "--outfile", str(output_dir),
         "--outtype", dtype
     ]
     
@@ -76,13 +147,13 @@ def convert_lora_adapter(adapter_path, base_model, output_path):
     # 出力ディレクトリを作成
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     
-    # 変換コマンドを実行
+    # 変換コマンドを実行（正しい引数形式）
     cmd = [
         sys.executable,
         str(convert_script),
         str(adapter_path),
-        str(base_model),
-        str(output_path)
+        "--outfile", str(output_path),
+        "--base-model-id", str(base_model)
     ]
     
     print(f"Running: {' '.join(cmd)}")
