@@ -1,0 +1,117 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Model files and training outputs
+models/
+output/
+gguf/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.model
+
+# llama.cpp directory (build artifacts and binaries)
+llama.cpp/
+
+# Chat history (optional - uncomment if you don't want to track chat logs)
+# history/
+
+# Large data files
+*.jsonl.bak
+*.jsonl.orig
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# HuggingFace cache
+.cache/
+transformers_cache/
+
+# Weights & Biases
+wandb/
+
+# MLflow
+mlruns/
+
+# TensorBoard
+runs/
+
+# Model checkpoints and training artifacts
+checkpoint-*/
+training_args.bin
+trainer_state.json
+config.json.bak
+tokenizer.json.bak
