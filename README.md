@@ -28,10 +28,10 @@ fine-tune-llm/
 │   └── tutor.txt
 ├── scripts/                  # 実行スクリプト
 │   ├── train_lora.py        # LoRA訓練
-│   ├── chat_with_lora.py    # チャットインターフェース
+│   ├── chat_with_lora.py    # チャットインターフェース（PyTorch）
 │   ├── merge_lora_adapter.py # アダプターマージ
 │   ├── convert_to_gguf.py   # GGUF変換
-│   └── run_llm.py           # ベースモデル実行
+│   └── jsonl_checker.py     # データ検証
 ├── llama.cpp/               # GGUF変換・実行ツール
 ├── requirements.txt         # Python依存関係
 ├── requirements-minimal.txt # 最小限の依存関係
@@ -48,6 +48,78 @@ fine-tune-llm/
 - カスタマイズ可能なシステムプロンプト
 - 自動的な会話履歴の保存と管理
 - tokenizer.model自動生成によるGGUF変換サポート
+
+## スクリプト詳細
+
+### 主要スクリプト
+
+#### 1. `train_lora.py` - LoRAファインチューニング
+**処理概要**:
+- HuggingFaceモデルの読み込みとLoRA設定の適用
+- データセットの前処理とトークナイゼーション
+- LoRAアダプターの訓練実行
+- 訓練済みアダプターとトークナイザーの保存
+- tokenizer.model自動生成（GGUF変換対応）
+
+**主要機能**:
+- 複数のLoRAパラメータ設定（rank, alpha, dropout）
+- MPS/CUDA/CPU自動検出とデバイス最適化
+- データセット検証とエラーハンドリング
+- 訓練情報のJSON出力
+
+#### 2. `chat_with_lora.py` - PyTorchベースチャット
+**処理概要**:
+- ベースモデルとLoRAアダプターの読み込み
+- 対話型チャットインターフェースの提供
+- チャット履歴の自動保存・管理
+- システムプロンプトのカスタマイズ対応
+
+**主要機能**:
+- リアルタイム会話生成
+- 会話履歴の自動JSON保存（history/ディレクトリ）
+- チャット中のコマンド（clear, history, save, exit）
+- EOS token設定の最適化
+
+#### 3. `merge_lora_adapter.py` - アダプターマージ
+**処理概要**:
+- LoRAアダプターをベースモデルに統合
+- マージされたモデルの単一ファイル出力
+- tokenizer.model自動取得・保存
+- マージ情報のメタデータ保存
+
+**主要機能**:
+- LoRA重みの完全統合（merge_and_unload）
+- Safe serialization対応
+- 元のモデル情報の保持
+- マージ処理の詳細ログ出力
+
+#### 4. `convert_to_gguf.py` - GGUF形式変換
+**処理概要**:
+- HuggingFaceモデルのGGUF形式変換
+- llama.cpp変換スクリプトのラッパー
+- tokenizer.model自動生成・取得
+- 量子化処理の実行
+
+**主要機能**:
+- マージモデル・LoRAアダプター両対応
+- 複数量子化形式サポート（Q4_K_M, Q5_K_M等）
+- tokenizer.model不足時の自動補完
+- llama.cpp依存関係の自動検証
+
+### ユーティリティスクリプト
+
+#### 5. `jsonl_checker.py` - データ検証
+**処理概要**:
+- 訓練データの形式検証
+- JSONLファイルの構造チェック
+- messagesフィールドの妥当性確認
+- エラー詳細レポート生成
+
+**主要機能**:
+- Chat template形式の検証
+- 文字エンコーディング確認
+- データ統計情報の出力
+- 修復提案の表示
 
 ## 必要な環境
 
