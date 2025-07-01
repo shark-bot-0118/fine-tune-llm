@@ -1,8 +1,6 @@
 # LoRA Fine-tuning Project
 
-このプロジェクトは、LoRA（Low-Rank Adaptation）を使用してLLM（Large Language Model）をファインチューニングし、チューニングしたモデルでテストを実施可能です。  
-llama.ccpを利用してトレーニングしたモデルをGGUF形式へ量子化するプロンプトも提供しています。
-量子化したモデルを実行する場合はllma cliを利用してください。
+このプロジェクトは、LoRA（Low-Rank Adaptation）を使用してLLM（Large Language Model）をファインチューニングし、GGUF形式での高速推論も可能にする包括的なプロジェクトです。
 
 ## プロジェクト構成
 
@@ -24,39 +22,49 @@ fine_tune_llm/
 │   ├── chat_with_lora.py    # チャットインターフェース
 │   ├── merge_lora_adapter.py # アダプターマージ
 │   ├── convert_to_gguf.py   # GGUF変換
+│   ├── run_gguf_model.py    # GGUF実行
 │   └── run_llm.py           # ベースモデル実行
 ├── llama.cpp/               # GGUF変換・実行ツール
 ├── requirements.txt         # Python依存関係
+├── requirements-minimal.txt # 最小限の依存関係
 └── README.md
 ```
 
 ## 機能
 
 - LoRAを使用した効率的なファインチューニング
-- 対話型チャットインターフェース
+- 対話型チャットインターフェース（PyTorchベース・GGUFベース）
 - モデルのマージとエクスポート機能
 - GGUF形式への変換と量子化
+- llama.cppによる高速推論
 - カスタマイズ可能なシステムプロンプト
 - 自動的な会話履歴の保存と管理
+- tokenizer.model自動生成によるGGUF変換サポート
 
 ## 必要な環境
 
-- Python 3.8+
-- PyTorch 2.0+
-- Transformers 4.36.0+
-- PEFT 0.7.0+
+- Python 3.9+
+- PyTorch 2.1+
+- Transformers 4.46.0+（Gemma 3サポート）
+- PEFT 0.13.0+
+- llama.cpp（GGUF推論用）
 - その他の依存関係（requirements.txtを参照）
 
 ## インストール
 
-1. リポジトリをクローン
+### 1. リポジトリをクローン
 ```bash
-git clone https://github.com/shark-bot-0118/fine-tune-llm.git
+git clone <repository-url>
 cd fine_tune_llm
 ```
 
-2. 依存関係をインストール
+### 2. Python依存関係をインストール
 ```bash
+# 仮想環境の作成（推奨）
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# または .venv\Scripts\activate  # Windows
+
 # 最小限のインストール
 pip install -r requirements-minimal.txt
 
@@ -64,10 +72,36 @@ pip install -r requirements-minimal.txt
 pip install -r requirements.txt
 ```
 
-3. llama.cppのセットアップ（GGUF変換用）
+### 3. llama.cppのセットアップ（GGUF変換・実行用）
+
+llama.cppは高速なGGUF推論のために必要です：
+
 ```bash
+# llama.cppのクローン（既に含まれている場合はスキップ）
+git clone https://github.com/ggerganov/llama.cpp.git
 cd llama.cpp
-make  # またはCMakeを使用
+
+# CMakeを使用したビルド（推奨）
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)  # Linux
+make -j$(sysctl -n hw.ncpu)  # macOS
+
+# Makefileを使用したビルド（非推奨）
+# make  # CMakeビルドが失敗した場合のみ
+```
+
+#### Apple Silicon（M1/M2/M3）での最適化
+```bash
+# Metal（GPU）サポートを有効化
+cmake .. -DCMAKE_BUILD_TYPE=Release -DGGML_METAL=ON
+```
+
+#### NVIDIA GPUでの最適化
+```bash
+# CUDA サポートを有効化
+cmake .. -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON
 ```
 
 ## 使用方法
@@ -80,7 +114,7 @@ make  # またはCMakeを使用
 {"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
 ```
 
-### 2. ファインチューニング
+### 2. LoRAファインチューニング
 
 ```bash
 # 基本的な訓練
@@ -101,7 +135,7 @@ python scripts/train_lora.py \
   --output ./my_model
 ```
 
-### 3. チャットインターフェース
+### 3. PyTorchベースチャットインターフェース
 
 ```bash
 # デフォルトプロンプトでチャット
@@ -159,17 +193,17 @@ python scripts/merge_lora_adapter.py \
 
 ### 5. GGUF形式への変換
 
-#### HuggingFaceモデルをGGUF化
+#### マージされたモデルをGGUF化（推奨）
 ```bash
 # 基本的な変換
 python scripts/convert_to_gguf.py \
-  --model google/gemma-3-1b-it \
-  --output gguf/gemma-3-1b-it
+  --model output/merged_model \
+  --output gguf/gemma-3-1b-it-merged
 
 # 量子化付きで変換
 python scripts/convert_to_gguf.py \
   --model output/merged_model \
-  --output gguf/gemma-3-1b-it \
+  --output gguf/gemma-3-1b-it-merged \
   --quantize Q4_K_M
 ```
 
@@ -181,6 +215,56 @@ python scripts/convert_to_gguf.py \
   --output gguf/lora_adapter.gguf
 ```
 
+#### 既存GGUFファイルの量子化
+```bash
+python scripts/convert_to_gguf.py \
+  --quantize-only gguf/model.gguf gguf/model_q4.gguf \
+  --quant-type Q4_K_M
+```
+
+### 6. GGUF形式での高速推論
+
+#### チャットモード（対話式）
+```bash
+# マージされたGGUFモデルでチャット
+python scripts/run_gguf_model.py \
+  --model gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
+  --save-history
+
+# LoRAアダプター付きでチャット
+python scripts/run_gguf_model.py \
+  --model gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
+  --lora gguf/lora_adapter.gguf \
+  --system-prompt prompts/coding_assistant.txt
+
+# カスタム設定でチャット
+python scripts/run_gguf_model.py \
+  --model gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
+  --temperature 0.7 \
+  --max-tokens 1024 \
+  --threads 8
+```
+
+#### サーバーモード（API経由）
+```bash
+# HTTP APIサーバーとして起動
+python scripts/run_gguf_model.py \
+  --model gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
+  --server \
+  --port 8080
+
+# アクセス: http://localhost:8080
+```
+
+#### llama-cli直接実行（最高速）
+```bash
+cd llama.cpp
+build/bin/llama-cli \
+  -m ../gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
+  -p "あなたは親切なAIアシスタントです。\\n\\nUser: こんにちは\\n\\nAssistant:" \
+  -n 100 --temp 0.7 --repeat-penalty 1.1
+```
+
 ## システムプロンプト
 
 プロジェクトには用途別のシステムプロンプトが用意されています：
@@ -190,8 +274,75 @@ python scripts/convert_to_gguf.py \
 - `prompts/creative_writer.txt`: 創作活動専門
 - `prompts/tutor.txt`: 教育・学習専門
 
-カスタムプロンプトも作成可能です。詳細は`prompts/README.md`を参照してください。
+カスタムプロンプトも作成可能です。
+
+## 設定
+
+### 環境変数（オプション）
+- `BASE_MODEL_NAME`: デフォルトのベースモデル名
+- `PREFIX`: 出力ファイルのプレフィックス
+
+### コマンドライン引数
+各スクリプトは`--help`オプションで詳細なヘルプを表示します：
+
+```bash
+python scripts/train_lora.py --help
+python scripts/chat_with_lora.py --help
+python scripts/run_gguf_model.py --help
+python scripts/convert_to_gguf.py --help
+```
+
+## トラブルシューティング
+
+### よくある問題
+
+1. **メモリ不足エラー**
+   - バッチサイズを小さくする: `--batch-size 1`
+   - 勾配蓄積ステップを増やす: `--gradient-accumulation-steps 16`
+
+2. **Gemma 3モデルのエラー**
+   - Transformersライブラリを更新: `pip install transformers>=4.46.0`
+
+3. **GGUF変換エラー**
+   - llama.cppがビルドされているか確認
+   - tokenizer.modelが自動生成されない場合は手動でHuggingFaceからダウンロード
+
+4. **llama.cppビルドエラー**
+   - CMakeを使用: `cmake .. && make`
+   - 必要に応じてコンパイラを更新
+
+5. **チャットが応答しない**
+   - EOS token設定を確認
+   - 温度パラメータを調整: `--temperature 0.7`
+   - リピートペナルティを調整: `--repeat-penalty 1.1`
+
+### パフォーマンス最適化
+
+- **Apple Silicon**: MPSデバイスが自動で使用されます
+- **NVIDIA GPU**: CUDAが自動で検出されます
+- **量子化**: Q4_K_MまたはQ5_K_Mがバランスが良いです
+- **スレッド数**: CPUコア数に合わせて`--threads`を調整
+
+## パフォーマンス比較
+
+| 実行方法 | 速度 | メモリ使用量 | 推奨用途 |
+|---------|------|-------------|----------|
+| PyTorch（chat_with_lora.py） | 遅い | 高い | 開発・デバッグ |
+| GGUF（run_gguf_model.py） | 速い | 中程度 | 一般的な使用 |
+| llama-cli直接実行 | 最速 | 低い | 本番環境 |
 
 ## ライセンス
 
 MIT License
+
+## 貢献
+
+プルリクエストやイシューの報告を歓迎します。
+
+## 参考リンク
+
+- [LoRA論文](https://arxiv.org/abs/2106.09685)
+- [PEFT Documentation](https://huggingface.co/docs/peft)
+- [llama.cpp](https://github.com/ggerganov/llama.cpp)
+- [GGUF Format](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md)
+- [Gemma 3 Model](https://huggingface.co/google/gemma-3-1b-it)
