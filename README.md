@@ -227,40 +227,6 @@ python scripts/convert_to_gguf.py \
   --quant-type Q4_K_M
 ```
 
-### 6. GGUF形式での高速推論
-
-#### チャットモード（対話式）
-```bash
-# マージされたGGUFモデルでチャット
-python scripts/run_gguf_model.py \
-  --model gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
-  --save-history
-
-# LoRAアダプター付きでチャット
-python scripts/run_gguf_model.py \
-  --model gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
-  --lora gguf/lora_adapter.gguf \
-  --system-prompt prompts/coding_assistant.txt
-
-# カスタム設定でチャット
-python scripts/run_gguf_model.py \
-  --model gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
-  --temperature 0.7 \
-  --max-tokens 1024 \
-  --threads 8
-```
-
-#### サーバーモード（API経由）
-```bash
-# HTTP APIサーバーとして起動
-python scripts/run_gguf_model.py \
-  --model gguf/gemma-3-1b-it-merged/Merged_Model-1.3B-F16.gguf \
-  --server \
-  --port 8080
-
-# アクセス: http://localhost:8080
-```
-
 #### llama-cli直接実行（最高速）
 ```bash
 cd llama.cpp
