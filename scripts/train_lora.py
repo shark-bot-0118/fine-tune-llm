@@ -402,6 +402,32 @@ def main():
         os.makedirs(final_model_path, exist_ok=True)
         trainer.save_model(final_model_path)
         tokenizer.save_pretrained(final_model_path)
+        
+        # SentencePieceモデルを明示的に保存（llama.cpp変換用）
+        if hasattr(tokenizer, 'save_vocabulary'):
+            try:
+                vocab_files = tokenizer.save_vocabulary(final_model_path)
+                print(f"Vocabulary files saved: {vocab_files}")
+            except Exception as e:
+                print(f"Warning: Could not save vocabulary files: {e}")
+        
+        # tokenizer.modelファイルが存在するか確認し、なければ警告
+        tokenizer_model_path = os.path.join(final_model_path, "tokenizer.model")
+        if not os.path.exists(tokenizer_model_path):
+            print(f"Warning: tokenizer.model not found at {tokenizer_model_path}")
+            print("This may cause issues with llama.cpp conversion.")
+            
+            # HuggingFaceモデルから直接コピーを試行
+            try:
+                from transformers.utils import cached_file
+                original_tokenizer_model = cached_file(model_name, "tokenizer.model")
+                if original_tokenizer_model and os.path.exists(original_tokenizer_model):
+                    import shutil
+                    shutil.copy2(original_tokenizer_model, tokenizer_model_path)
+                    print(f"Copied tokenizer.model from original model")
+            except Exception as e:
+                print(f"Could not copy tokenizer.model from original model: {e}")
+        
         print("Model saved successfully.")
     except Exception as e:
         print(f"Error saving model: {e}")
@@ -436,4 +462,4 @@ def main():
     print(f"  tokenizer = AutoTokenizer.from_pretrained('{final_model_path}')")
 
 if __name__ == "__main__":
-    main()
+    main() 
