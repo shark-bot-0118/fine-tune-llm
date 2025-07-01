@@ -134,6 +134,38 @@ Examples:
         )
         tokenizer.save_pretrained(args.output)
         
+        # SentencePieceモデルを明示的に保存（llama.cpp変換用）
+        if hasattr(tokenizer, 'save_vocabulary'):
+            try:
+                vocab_files = tokenizer.save_vocabulary(args.output)
+                print(f"📝 Vocabulary files saved: {vocab_files}")
+            except Exception as e:
+                print(f"⚠️ Warning: Could not save vocabulary files: {e}")
+        
+        # tokenizer.modelファイルが存在するか確認し、なければコピーを試行
+        tokenizer_model_path = os.path.join(args.output, "tokenizer.model")
+        if not os.path.exists(tokenizer_model_path):
+            print(f"⚠️ Warning: tokenizer.model not found at {tokenizer_model_path}")
+            print("This may cause issues with llama.cpp conversion.")
+            
+            # 元のベースモデルから直接コピーを試行
+            try:
+                from transformers.utils import cached_file
+                original_tokenizer_model = cached_file(args.model, "tokenizer.model")
+                if original_tokenizer_model and os.path.exists(original_tokenizer_model):
+                    import shutil
+                    shutil.copy2(original_tokenizer_model, tokenizer_model_path)
+                    print(f"📋 Copied tokenizer.model from base model")
+                else:
+                    # LoRAアダプターからのコピーも試行
+                    lora_tokenizer_model = os.path.join(args.lora, "tokenizer.model")
+                    if os.path.exists(lora_tokenizer_model):
+                        import shutil
+                        shutil.copy2(lora_tokenizer_model, tokenizer_model_path)
+                        print(f"📋 Copied tokenizer.model from LoRA adapter")
+            except Exception as e:
+                print(f"❌ Could not copy tokenizer.model: {e}")
+        
         # Save merge information
         merge_info = {
             "base_model": args.model,
